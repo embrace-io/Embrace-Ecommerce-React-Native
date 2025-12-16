@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start -- --reset-cache)",
+      "Bash(npm run ios:*)",
+      "Bash(open:*)",
+      "Bash(pod install)",
+      "Bash(npm install:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(npx tsc:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill -9)"
+    ]
+  }
+}

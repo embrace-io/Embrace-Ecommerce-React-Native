@@ -17,6 +17,9 @@ end
 target 'EmbraceEcommerceRN' do
   config = use_native_modules!
 
+  # Required for Embrace SDK
+  pod 'KSCrash', :modular_headers => true
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

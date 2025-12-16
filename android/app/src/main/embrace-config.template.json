@@ -1,0 +1,12 @@
+{
+  "app_id": "YOUR_ANDROID_APP_ID",
+  "api_token": "YOUR_API_TOKEN",
+  "sdk_config": {
+    "networking": {
+      "capture_request_content_length": true
+    },
+    "crash_handler": {
+      "enabled": true
+    }
+  }
+}

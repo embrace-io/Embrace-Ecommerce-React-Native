@@ -73,3 +73,7 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# Embrace SDK - Keep APP IDs private
+src/config/embrace.config.ts
+android/app/src/main/embrace-config.json
