@@ -10,8 +10,8 @@
     "test": "jest"
   },
   "dependencies": {
-    "@embrace-io/react-native": "file:../embrace-react-native-sdk/packages/core",
-    "@embrace-io/react-native-tracer-provider": "file:../embrace-react-native-sdk/packages/react-native-tracer-provider",
+    "@embrace-io/react-native": "^6.3.0",
+    "@embrace-io/react-native-tracer-provider": "^6.3.0",
     "@opentelemetry/api": "^1.9.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native/new-app-screen": "0.83.0",
