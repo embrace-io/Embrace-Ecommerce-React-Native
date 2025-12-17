@@ -168,9 +168,6 @@ jobs:
           BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw -o - "$APP_PATH/Info.plist" 2>/dev/null || echo "org.reactjs.native.example.EmbraceEcommerceRN")
           echo "Bundle ID: $BUNDLE_ID"
 
-          # Set environment variable for RUN_SOURCE (readable by the app)
-          xcrun simctl setenv "$SIMULATOR_UDID" RUN_SOURCE "$RUN_SOURCE"
-
           # Launch the app
           echo "Launching app..."
           xcrun simctl launch "$SIMULATOR_UDID" "$BUNDLE_ID"

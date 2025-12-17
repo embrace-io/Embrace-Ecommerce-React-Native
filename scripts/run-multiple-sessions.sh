@@ -76,9 +76,6 @@ for i in "${!SESSIONS[@]}"; do
     echo "Session $session_num of $TOTAL: $run_source"
     echo "--------------------------------------------"
 
-    # Set environment variable for RUN_SOURCE
-    xcrun simctl setenv "$SIMULATOR_UDID" RUN_SOURCE "$run_source"
-
     # Launch the app
     echo "Launching app..."
     if xcrun simctl launch "$SIMULATOR_UDID" "$BUNDLE_ID"; then
