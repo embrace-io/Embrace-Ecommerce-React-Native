@@ -1,0 +1,204 @@
+name: Scheduled Sessions (Lightweight)
+
+# Runs every 2 hours to maintain steady session flow to dashboard
+# Creates non-stitched sessions (1 session per run) to complement
+# one-simulator.yml which creates stitched sessions
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+
+env:
+  PROJECT_NAME: "EmbraceEcommerceRN"
+  SCHEME_NAME: "EmbraceEcommerceRN"
+  XCODE_VERSION: "16.4"
+  NODE_VERSION: "20"
+  DEVICE_NAME: "iPhone 16"
+  SESSION_DURATION: 60  # seconds to run the app
+
+concurrency:
+  group: scheduled-sessions
+  cancel-in-progress: true
+
+jobs:
+  generate-session:
+    name: "Generate Session"
+    runs-on: macos-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Select Xcode version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+          xcodebuild -version
+
+      - name: Download build artifacts
+        id: check_artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Attempting to download artifacts from build.yml workflow..."
+
+          # Get the latest successful build.yml run
+          RUN_ID=$(gh run list --workflow=build.yml --status=success --limit=1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+
+          if [[ -n "$RUN_ID" ]]; then
+            echo "Found successful build run: $RUN_ID"
+            mkdir -p ios/DerivedData/Build/Products
+            gh run download "$RUN_ID" --name test-build-artifacts --dir ios/DerivedData/Build/Products 2>/dev/null || true
+          fi
+
+          # Check if artifacts were downloaded
+          if [[ -d "ios/DerivedData/Build/Products" ]] && [[ -n "$(ls -A ios/DerivedData/Build/Products 2>/dev/null)" ]]; then
+            echo "artifacts_found=true" >> $GITHUB_OUTPUT
+            echo "Artifacts downloaded successfully"
+            ls -la ios/DerivedData/Build/Products/
+          else
+            echo "artifacts_found=false" >> $GITHUB_OUTPUT
+            echo "No artifacts found, will build from source"
+          fi
+
+      - name: Install npm dependencies (if building from source)
+        if: steps.check_artifacts.outputs.artifacts_found != 'true'
+        run: |
+          npm pkg set dependencies.@embrace-io/react-native="^5.0.0"
+          npm pkg set dependencies.@embrace-io/react-native-tracer-provider="^5.0.0"
+          npm install
+
+      - name: Configure Embrace iOS App ID
+        run: |
+          if [[ -n "${{ vars.EMBRACE_IOS_APP_ID }}" ]]; then
+            cat > src/config/embrace.config.ts << EOF
+          export const EMBRACE_CONFIG = {
+            ios: {
+              appId: '${{ vars.EMBRACE_IOS_APP_ID }}',
+            },
+            android: {
+              appId: '${{ vars.EMBRACE_ANDROID_APP_ID }}',
+            },
+          };
+          EOF
+            echo "Embrace config created"
+          else
+            echo "ERROR: EMBRACE_IOS_APP_ID variable not found"
+            exit 1
+          fi
+
+      - name: Cache CocoaPods
+        if: steps.check_artifacts.outputs.artifacts_found != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ios/Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods (if building from source)
+        if: steps.check_artifacts.outputs.artifacts_found != 'true'
+        working-directory: ios
+        run: |
+          pod install --repo-update
+
+      - name: Setup simulator
+        id: setup_simulator
+        run: |
+          SIMULATOR_UDID=$(xcrun simctl list devices available | grep "${{ env.DEVICE_NAME }}" | grep -v "Plus\|Pro" | head -1 | grep -o '[A-F0-9-]\{36\}')
+          if [[ -z "$SIMULATOR_UDID" ]]; then
+            echo "Simulator not found, trying any iPhone"
+            SIMULATOR_UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -o '[A-F0-9-]\{36\}')
+          fi
+          echo "simulator_udid=$SIMULATOR_UDID" >> $GITHUB_OUTPUT
+          echo "Found simulator: $SIMULATOR_UDID"
+
+          xcrun simctl boot "$SIMULATOR_UDID" 2>/dev/null || true
+          xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+          echo "Simulator booted"
+
+      - name: Build from source (fallback if no artifacts)
+        if: steps.check_artifacts.outputs.artifacts_found != 'true'
+        working-directory: ios
+        run: |
+          echo "Building from source (no cached artifacts available)"
+          xcodebuild build \
+            -workspace "${{ env.PROJECT_NAME }}.xcworkspace" \
+            -scheme "${{ env.SCHEME_NAME }}" \
+            -destination "platform=iOS Simulator,id=${{ steps.setup_simulator.outputs.simulator_udid }}" \
+            -derivedDataPath "DerivedData" \
+            -configuration Debug \
+            -skipMacroValidation \
+            -allowProvisioningUpdates \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Install and run app to generate session
+        env:
+          RUN_SOURCE: "scheduled-browse"
+        run: |
+          SIMULATOR_UDID="${{ steps.setup_simulator.outputs.simulator_udid }}"
+
+          # Find the built app
+          APP_PATH=$(find ios/DerivedData -name "*.app" -path "*/Debug-iphonesimulator/*" | head -1)
+
+          if [[ -z "$APP_PATH" ]]; then
+            echo "ERROR: Could not find built app"
+            exit 1
+          fi
+
+          echo "Found app at: $APP_PATH"
+
+          # Install the app on simulator
+          xcrun simctl install "$SIMULATOR_UDID" "$APP_PATH"
+
+          # Get the bundle identifier
+          BUNDLE_ID=$(defaults read "$APP_PATH/Info.plist" CFBundleIdentifier)
+          echo "Bundle ID: $BUNDLE_ID"
+
+          # Set environment variable for RUN_SOURCE (readable by the app)
+          xcrun simctl setenv "$SIMULATOR_UDID" RUN_SOURCE "$RUN_SOURCE"
+
+          # Launch the app
+          echo "Launching app..."
+          xcrun simctl launch "$SIMULATOR_UDID" "$BUNDLE_ID"
+
+          # Let the app run to generate telemetry
+          echo "Letting app run for ${{ env.SESSION_DURATION }} seconds to generate session data..."
+          sleep ${{ env.SESSION_DURATION }}
+
+          # Terminate the app gracefully to flush SDK data
+          echo "Terminating app..."
+          xcrun simctl terminate "$SIMULATOR_UDID" "$BUNDLE_ID" || true
+
+          # Wait for SDK to upload data
+          echo "Waiting for SDK to upload session data..."
+          sleep 10
+
+          echo "Session generated successfully!"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          killall Simulator 2>/dev/null || true
+          xcrun simctl shutdown "${{ steps.setup_simulator.outputs.simulator_udid }}" 2>/dev/null || true
+
+      - name: Session summary
+        run: |
+          echo "## Session Generation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Device:** ${{ env.DEVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run Source:** scheduled-browse" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration:** ${{ env.SESSION_DURATION }}s" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the Embrace dashboard for the new session." >> $GITHUB_STEP_SUMMARY
