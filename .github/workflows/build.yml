@@ -82,6 +82,9 @@ jobs:
       - name: Install CocoaPods
         working-directory: ios
         run: |
+          # Remove Podfile.lock to avoid version conflicts with local dev setup
+          # (local uses file references to SDK, CI uses published npm packages)
+          rm -f Podfile.lock
           pod install --repo-update
 
       - name: Find simulator
