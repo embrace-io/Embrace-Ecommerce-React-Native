@@ -41,18 +41,20 @@ echo "Session Duration: ${SESSION_DURATION}s each"
 echo "Sessions to create: ${#SESSIONS[@]}"
 echo ""
 
-# Find the built app
-APP_PATH=$(find ios/DerivedData -name "*.app" -path "*/Debug-iphonesimulator/*" 2>/dev/null | head -1)
+# Find the built app (check multiple possible locations)
+APP_PATH=$(find ios -name "*.app" -type d | grep -E "Debug-iphonesimulator|Products" | head -1)
 
 if [[ -z "$APP_PATH" ]]; then
-    echo "Error: Could not find built app in ios/DerivedData"
+    echo "Error: Could not find built app"
+    echo "Searching for .app bundles:"
+    find ios -name "*.app" -type d 2>/dev/null || true
     exit 1
 fi
 
 echo "Found app at: $APP_PATH"
 
-# Get the bundle identifier
-BUNDLE_ID=$(defaults read "$APP_PATH/Info.plist" CFBundleIdentifier)
+# Get the bundle identifier using plutil (more reliable)
+BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw -o - "$APP_PATH/Info.plist" 2>/dev/null || echo "org.reactjs.native.example.EmbraceEcommerceRN")
 echo "Bundle ID: $BUNDLE_ID"
 echo ""
 
