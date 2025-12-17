@@ -101,12 +101,13 @@ jobs:
       - name: Build for testing
         working-directory: ios
         run: |
-          xcodebuild build-for-testing \
+          # Use Release configuration so JS bundle is embedded (no Metro needed)
+          xcodebuild build \
             -workspace "${{ env.PROJECT_NAME }}.xcworkspace" \
             -scheme "${{ env.SCHEME_NAME }}" \
             -destination "platform=iOS Simulator,id=${{ steps.find_simulator.outputs.simulator_udid }}" \
             -derivedDataPath "${{ env.DERIVED_DATA_PATH }}" \
-            -configuration Debug \
+            -configuration Release \
             -skipMacroValidation \
             -allowProvisioningUpdates \
             CODE_SIGNING_ALLOWED=NO \

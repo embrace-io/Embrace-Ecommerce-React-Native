@@ -136,7 +136,7 @@ jobs:
             -scheme "${{ env.SCHEME_NAME }}" \
             -destination "platform=iOS Simulator,id=${{ steps.setup_simulator.outputs.simulator_udid }}" \
             -derivedDataPath "DerivedData" \
-            -configuration Debug \
+            -configuration Release \
             -skipMacroValidation \
             -allowProvisioningUpdates \
             CODE_SIGNING_ALLOWED=NO \
@@ -149,8 +149,8 @@ jobs:
         run: |
           SIMULATOR_UDID="${{ steps.setup_simulator.outputs.simulator_udid }}"
 
-          # Find the built app (check multiple possible locations)
-          APP_PATH=$(find ios -name "*.app" -type d | grep -E "Debug-iphonesimulator|Products" | head -1)
+          # Find the built app (check Release first, then Debug)
+          APP_PATH=$(find ios -name "*.app" -type d | grep -E "Release-iphonesimulator|Products" | head -1)
 
           if [[ -z "$APP_PATH" ]]; then
             echo "ERROR: Could not find built app"

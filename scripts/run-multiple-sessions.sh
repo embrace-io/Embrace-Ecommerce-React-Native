@@ -41,8 +41,8 @@ echo "Session Duration: ${SESSION_DURATION}s each"
 echo "Sessions to create: ${#SESSIONS[@]}"
 echo ""
 
-# Find the built app (check multiple possible locations)
-APP_PATH=$(find ios -name "*.app" -type d | grep -E "Debug-iphonesimulator|Products" | head -1)
+# Find the built app (check Release first, then Debug)
+APP_PATH=$(find ios -name "*.app" -type d | grep -E "Release-iphonesimulator|Products" | head -1)
 
 if [[ -z "$APP_PATH" ]]; then
     echo "Error: Could not find built app"

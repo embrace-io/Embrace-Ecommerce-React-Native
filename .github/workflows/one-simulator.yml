@@ -136,7 +136,7 @@ jobs:
             -scheme "${{ env.SCHEME_NAME }}" \
             -destination "platform=iOS Simulator,id=${{ steps.setup_simulator.outputs.simulator_udid }}" \
             -derivedDataPath "DerivedData" \
-            -configuration Debug \
+            -configuration Release \
             -skipMacroValidation \
             -allowProvisioningUpdates \
             CODE_SIGNING_ALLOWED=NO \
