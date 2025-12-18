@@ -52,6 +52,7 @@ jobs:
         run: |
           if [[ -n "${{ vars.EMBRACE_IOS_APP_ID }}" ]]; then
             # Create embrace.config.ts from template with CI values
+            # ciMode: true enables automatic crash simulation (~20% of sessions)
             cat > src/config/embrace.config.ts << EOF
           export const EMBRACE_CONFIG = {
             ios: {
@@ -60,9 +61,10 @@ jobs:
             android: {
               appId: '${{ vars.EMBRACE_ANDROID_APP_ID }}',
             },
+            ciMode: true,
           };
           EOF
-            echo "Embrace config created with iOS App ID"
+            echo "Embrace config created with iOS App ID and CI mode enabled"
           else
             echo "ERROR: EMBRACE_IOS_APP_ID variable not found in repository variables"
             echo "Please add EMBRACE_IOS_APP_ID to your repository variables at: Settings > Secrets and variables > Actions > Variables"

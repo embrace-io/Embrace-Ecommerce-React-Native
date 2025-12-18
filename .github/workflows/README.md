@@ -19,6 +19,16 @@ The workflows are designed to create diverse session data:
 
 Combined, this achieves approximately 50% stitched / 50% non-stitched sessions.
 
+### Crash Simulation
+
+Approximately **20% of CI sessions will experience an intentional crash** to test Embrace crash reporting. This is controlled by the `ciMode: true` flag in the Embrace config written by CI workflows.
+
+When CI mode is enabled:
+- A random probability check determines if the session will crash
+- If selected for crash (~20% chance), the app will crash after 20-35 seconds
+- Session properties `ci_mode` and `ci_crash_scheduled` track the crash simulation state
+- The crash is logged with breadcrumb `CI_CRASH_TRIGGERED` before occurring
+
 ## Setup Instructions
 
 ### 1. Add Repository Variables

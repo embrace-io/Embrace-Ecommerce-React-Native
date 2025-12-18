@@ -77,6 +77,7 @@ jobs:
       - name: Configure Embrace iOS App ID
         run: |
           if [[ -n "${{ vars.EMBRACE_IOS_APP_ID }}" ]]; then
+            # ciMode: true enables automatic crash simulation (~20% of sessions)
             cat > src/config/embrace.config.ts << EOF
           export const EMBRACE_CONFIG = {
             ios: {
@@ -85,9 +86,10 @@ jobs:
             android: {
               appId: '${{ vars.EMBRACE_ANDROID_APP_ID }}',
             },
+            ciMode: true,
           };
           EOF
-            echo "Embrace config created"
+            echo "Embrace config created with CI mode enabled"
           else
             echo "ERROR: EMBRACE_IOS_APP_ID variable not found"
             exit 1

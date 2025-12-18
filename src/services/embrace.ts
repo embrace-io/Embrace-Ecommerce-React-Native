@@ -126,6 +126,9 @@ class EmbraceService {
           'session_run_source',
           Platform.OS === 'ios' ? 'Simulator' : 'Emulator',
         );
+
+        // Start CI crash simulation if enabled
+        this.startCICrashSimulation();
       } else {
         console.warn('Embrace SDK failed to initialize');
       }
@@ -751,6 +754,63 @@ class EmbraceService {
 
     // This will cause a crash for testing purposes
     throw new Error('Embrace crash test - this is intentional');
+  }
+
+  // ============================================
+  // CI MODE - Automatic Crash Simulation
+  // ============================================
+
+  /**
+   * Starts CI crash simulation if ciMode is enabled in config.
+   * Approximately 20% of CI sessions will experience an intentional crash.
+   * The crash occurs after a delay to allow telemetry to be generated first.
+   */
+  startCICrashSimulation(): void {
+    if (!EMBRACE_CONFIG.ciMode) {
+      return;
+    }
+
+    console.log('[CI Mode] Crash simulation enabled');
+    this.addSessionProperty('ci_mode', 'enabled');
+
+    // Calculate crash probability (20% chance)
+    const crashProbabilityThreshold = 79;
+    const probability = Math.floor(Math.random() * 100);
+    const willCrash = probability > crashProbabilityThreshold;
+
+    console.log(
+      `[CI Mode] Crash probability roll: ${probability} (threshold: >${crashProbabilityThreshold} to crash)`,
+    );
+
+    if (willCrash) {
+      this.addSessionProperty('ci_crash_scheduled', 'true');
+      console.log('[CI Mode] Crash scheduled for this session');
+
+      // Wait 20-35 seconds before crashing to allow telemetry generation
+      const delayMs = 20000 + Math.floor(Math.random() * 15000);
+      console.log(`[CI Mode] Crash will occur in ${delayMs / 1000} seconds`);
+
+      setTimeout(() => {
+        this.triggerCICrash();
+      }, delayMs);
+    } else {
+      this.addSessionProperty('ci_crash_scheduled', 'false');
+      console.log('[CI Mode] No crash scheduled for this session');
+    }
+  }
+
+  private triggerCICrash(): void {
+    console.log('[CI Mode] Triggering intentional crash now');
+    this.addBreadcrumb('CI_CRASH_TRIGGERED');
+    this.logError('CI automated crash test', {
+      test_type: 'ci_automated_crash',
+      crash_reason: 'scheduled_crash_simulation',
+    });
+
+    // Small delay to ensure logs are sent
+    setTimeout(() => {
+      throw new Error('CI automated crash - 20% probability crash simulation');
+    }, 500);
   }
 
   // ============================================
